@@ -14,6 +14,7 @@ mock_states.json
 __pycache__/
 *.py[cod]
 venv/
+.pytest_cache/
 
 # IDE
 .vscode/
