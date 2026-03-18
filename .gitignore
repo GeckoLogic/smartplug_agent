@@ -1,0 +1,20 @@
+# credentials and runtime state
+config.yaml
+state.json
+meross_token.json
+
+# logs
+run.log
+run.log.1
+
+# mock data
+mock_states.json
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+
+# IDE
+.vscode/
+.idea/

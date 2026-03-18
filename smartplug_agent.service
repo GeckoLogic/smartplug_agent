@@ -1,0 +1,15 @@
+[Unit]
+Description=Smart Plug Monitoring Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=plugagent
+WorkingDirectory=/home/plugagent/smartplug_agent
+ExecStart=/home/plugagent/smartplug_agent/venv/bin/python agent.py --config /home/plugagent/smartplug_agent/config.yaml --state /home/plugagent/smartplug_agent/state.json
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

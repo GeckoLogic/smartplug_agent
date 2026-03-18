@@ -1,0 +1,41 @@
+meross:
+  email: "user@example.com"
+  password: "secret"
+
+auto_correct: "per_plug"        # "all" | "none" | "per_plug" (default)
+
+plugs:
+  - name: "Office Lamp"
+    device_id: "abc123"
+    auto_correct: false
+    schedule:
+      - days: ["mon", "tue", "wed", "thu", "fri"]
+        on_time: "07:00"
+        off_time: "22:00"
+      - days: ["sat", "sun"]
+        on_time: "09:00"
+        off_time: "23:00"
+
+  - name: "Living Room Fan"
+    device_id: "def456"
+    schedule:
+      - days: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        on_time: "08:00"
+        off_time: "23:00"
+
+notifications:
+  email:
+    enabled: true
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    smtp_user: "user@gmail.com"
+    smtp_password: "apppassword"
+    to:
+      - "recipient@example.com"
+  telegram:
+    enabled: true
+    bot_token: "123456:ABC-DEF..."
+    chat_id: "789012"
+
+alerts:
+  suppress_repeat_minutes: 60
