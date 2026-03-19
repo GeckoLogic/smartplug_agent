@@ -1,6 +1,6 @@
 # Smart Plug Monitoring Agent
 
-A lightweight Python agent that monitors Meross smart plugs on a schedule and sends alerts when plugs are unreachable or in the wrong on/off state. All problems detected in a single run are reported in one combined notification.
+A lightweight Python agent that monitors Meross smart plugs on a schedule and sends alerts when plugs are unreachable or in the wrong on/off state. The agent attempts to fix any plugs in the wrong on/off state. The agent sends an alert with a list of all problems in one combined notification.
 
 ---
 
