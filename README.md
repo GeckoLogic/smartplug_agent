@@ -8,7 +8,7 @@ A lightweight Python agent that monitors Meross smart plugs on a schedule and se
 
 **Problem:** Meross smart plugs occasionally go offline or get switched manually and stay in the wrong state. There is no built-in way to receive alerts or automatically restore a plug to its scheduled state.
 
-**Solution:** A small agent that runs every 30 minutes, checks each plug against its expected schedule, and sends a single alert listing all problems. Alert spam is suppressed with a configurable cooldown window; state is persisted across runs so you only get notified once per incident.
+**Solution:** A small agent that runs every 30 minutes, checks each plug against its expected schedule. If a new issue is found, an alert is sent that outlines all new and ongoing problems. Alert spam is suppressed with a configurable cooldown window; state is persisted across runs so you only get notified once per incident.
 
 ---
 
@@ -16,7 +16,7 @@ A lightweight Python agent that monitors Meross smart plugs on a schedule and se
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Scheduler (every 30 min)                                │
+│  Scheduler (every 30 min)                               │
 │                                                         │
 │  agent.py ──► config.py      (load & validate YAML)     │
 │           ──► scheduler.py   (expected on/off/no_rule)  │
