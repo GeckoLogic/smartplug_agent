@@ -8,7 +8,7 @@ A lightweight Python agent that monitors Meross smart plugs on a schedule and se
 
 **Problem:** Meross smart plugs occasionally go offline or get switched manually and stay in the wrong state. There is no built-in way to receive alerts or automatically restore a plug to its scheduled state.
 
-**Solution:** A small agent that runs every 5 minutes, checks each plug against its expected schedule, and sends a single alert listing all problems. Alert spam is suppressed with a configurable cooldown window; state is persisted across runs so you only get notified once per incident.
+**Solution:** A small agent that runs every 30 minutes, checks each plug against its expected schedule, and sends a single alert listing all problems. Alert spam is suppressed with a configurable cooldown window; state is persisted across runs so you only get notified once per incident.
 
 ---
 
@@ -16,7 +16,7 @@ A lightweight Python agent that monitors Meross smart plugs on a schedule and se
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Scheduler (every 5 min)                                │
+│  Scheduler (every 30 min)                                │
 │                                                         │
 │  agent.py ──► config.py      (load & validate YAML)     │
 │           ──► scheduler.py   (expected on/off/no_rule)  │
@@ -74,7 +74,7 @@ smartplug_agent/
 ├── run_agent.ps1              # Windows wrapper: runs agent, logs to run.log
 ├── setup_task_scheduler.ps1   # One-time setup: registers Windows Scheduled Task
 ├── smartplug_agent.service     # systemd service unit (Mac/Linux)
-├── smartplug_agent.timer       # systemd timer — every 5 min (Mac/Linux)
+├── smartplug_agent.timer       # systemd timer — every 30 min (Mac/Linux)
 ├── config.yaml                # Your credentials & schedule (not committed)
 ├── config.yaml.example        # Safe annotated template
 ├── requirements.txt
@@ -140,7 +140,7 @@ python agent.py --config config.yaml --state state.json
 
 Exit code `0` = all plugs healthy.
 
-### 6. Schedule (runs every 5 minutes)
+### 6. Schedule (runs every 30 minutes)
 
 **Windows** — run once to register a Scheduled Task:
 
@@ -149,7 +149,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned   # one-time, if needed
 .\setup_task_scheduler.ps1
 ```
 
-The task runs every 5 minutes with no visible window. It uses `run_agent.vbs` to launch PowerShell via `wscript.exe`, which keeps the process fully hidden in the background. Output is appended to `run.log` (rotated at 1 MB) and missed runs are caught up on after reboot.
+The task runs every 30 minutes with no visible window. It uses `run_agent.vbs` to launch PowerShell via `wscript.exe`, which keeps the process fully hidden in the background. Output is appended to `run.log` (rotated at 1 MB) and missed runs are caught up on after reboot.
 
 ```powershell
 Start-ScheduledTask -TaskName SmartPlugAgent          # trigger immediately

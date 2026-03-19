@@ -1,5 +1,5 @@
 # setup_task_scheduler.ps1
-# Registers a Windows Scheduled Task that runs the Smart Plug Agent every 5 minutes.
+# Registers a Windows Scheduled Task that runs the Smart Plug Agent every 30 minutes.
 # Run once from a PowerShell prompt in the project directory:
 #
 #   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned   # (one-time, if needed)
@@ -38,13 +38,13 @@ $Action = New-ScheduledTaskAction `
     -Argument "`"$RunnerScript`"" `
     -WorkingDirectory $ScriptDir
 
-# Trigger: every 5 minutes, effectively forever (10 years), starting now.
+# Trigger: every 30 minutes, effectively forever (10 years), starting now.
 # StartWhenAvailable (in Settings) handles the Persistent=true equivalent:
 # if the machine was off during a scheduled run, it catches up on next startup.
 $Trigger = New-ScheduledTaskTrigger `
     -Once `
     -At (Get-Date) `
-    -RepetitionInterval (New-TimeSpan -Minutes 5) `
+    -RepetitionInterval (New-TimeSpan -Minutes 30) `
     -RepetitionDuration (New-TimeSpan -Days 3650)
 
 $Settings = New-ScheduledTaskSettingsSet `
@@ -67,10 +67,10 @@ Register-ScheduledTask `
     -Trigger $Trigger `
     -Settings $Settings `
     -RunLevel Limited `
-    -Description "Monitors Meross smart plugs every 5 minutes and sends alerts on issues."
+    -Description "Monitors Meross smart plugs every 30 minutes and sends alerts on issues."
 
 Write-Host ""
-Write-Host "Registered '$TaskName' - runs every 5 minutes, logs to run.log."
+Write-Host "Registered '$TaskName' - runs every 30 minutes, logs to run.log."
 Write-Host ""
 Write-Host "Useful commands:"
 Write-Host "  Run now:     Start-ScheduledTask -TaskName '$TaskName'"

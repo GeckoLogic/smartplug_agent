@@ -62,8 +62,9 @@ async def check_plug(
     """
     Check a single plug's current state against its schedule.
 
-    Returns (healthy: bool, alert_text: str | None).
-    alert_text is set only when an alert should be sent (passes suppression window).
+    Returns (healthy: bool, new_alert: str | None, ongoing_alert: str | None).
+    new_alert is set when the issue is new (passes suppression window).
+    ongoing_alert is set when the issue exists but is within the suppression window.
     """
     plug_id = plug.device_id
 
@@ -73,28 +74,26 @@ async def check_plug(
     if expected == "no_rule":
         state_manager.clear_issue(plug_id, "unreachable")
         state_manager.clear_issue(plug_id, "wrong_state")
-        return True, None
+        return True, None, None
 
     actual = await client.get_plug_state(plug_id)
     logger.info("Plug '%s' (%s): actual_state='%s'", plug.name, plug_id, actual)
 
     if actual == "unreachable":
-        alert_text = None
+        alert_text = f"'{plug.name}' is unreachable (expected: {expected})"
         if state_manager.should_alert(plug_id, "unreachable", cfg.suppress_repeat_minutes):
-            alert_text = (
-                f"'{plug.name}' is unreachable (expected: {expected})"
-            )
             state_manager.record_alert(plug_id, "unreachable")
+            return False, alert_text, None
         else:
             logger.info("Plug '%s' unreachable alert suppressed", plug.name)
-        return False, alert_text
+            return False, None, alert_text
 
     state_manager.clear_issue(plug_id, "unreachable")
 
     if actual == expected:
         state_manager.clear_issue(plug_id, "wrong_state")
         logger.info("Plug '%s' (%s): state is correct ('%s')", plug.name, plug_id, actual)
-        return True, None
+        return True, None, None
 
     # Wrong state
     logger.warning(
@@ -116,16 +115,16 @@ async def check_plug(
     else:
         fix_note = None
 
-    alert_text = None
+    alert_text = f"'{plug.name}' is in wrong state (expected: {expected}, actual: {actual})"
+    if fix_note:
+        alert_text += f" — {fix_note}"
+
     if state_manager.should_alert(plug_id, "wrong_state", cfg.suppress_repeat_minutes):
-        alert_text = f"'{plug.name}' is in wrong state (expected: {expected}, actual: {actual})"
-        if fix_note:
-            alert_text += f" — {fix_note}"
         state_manager.record_alert(plug_id, "wrong_state")
+        return False, alert_text, None
     else:
         logger.info("Plug '%s' wrong_state alert suppressed", plug.name)
-
-    return False, alert_text
+        return False, None, alert_text
 
 
 async def async_main(args: argparse.Namespace) -> int:
@@ -154,27 +153,32 @@ async def async_main(args: argparse.Namespace) -> int:
     now = datetime.now().astimezone()
 
     all_healthy = True
-    alerts = []
+    new_alerts = []
+    ongoing_alerts = []
 
     if args.dry_run:
         client = MockMerossClient(args.mock_states)
         for plug in cfg.plugs:
-            healthy, alert_text = await check_plug(plug, client, state_manager, cfg, now, dry_run=True)
+            healthy, new_alert, ongoing_alert = await check_plug(plug, client, state_manager, cfg, now, dry_run=True)
             if not healthy:
                 all_healthy = False
-            if alert_text:
-                alerts.append(alert_text)
+            if new_alert:
+                new_alerts.append(new_alert)
+            if ongoing_alert:
+                ongoing_alerts.append(ongoing_alert)
     else:
         try:
             async with MerossClientWrapper(cfg.meross_email, cfg.meross_password) as client:
                 for plug in cfg.plugs:
-                    healthy, alert_text = await check_plug(
+                    healthy, new_alert, ongoing_alert = await check_plug(
                         plug, client, state_manager, cfg, now, dry_run=False
                     )
                     if not healthy:
                         all_healthy = False
-                    if alert_text:
-                        alerts.append(alert_text)
+                    if new_alert:
+                        new_alerts.append(new_alert)
+                    if ongoing_alert:
+                        ongoing_alerts.append(ongoing_alert)
         except Exception as exc:
             logger.error("Fatal error connecting to Meross cloud: %s", exc)
             if state_manager.should_alert("_cloud", "connection_failed", cfg.suppress_repeat_minutes):
@@ -193,10 +197,16 @@ async def async_main(args: argparse.Namespace) -> int:
 
     state_manager.clear_issue("_cloud", "connection_failed")
 
-    if alerts:
-        count = len(alerts)
+    if new_alerts:
+        all_issues = new_alerts + ongoing_alerts
+        count = len(all_issues)
         subject = f"[SmartPlugAgent] {count} issue{'s' if count > 1 else ''} detected"
-        body = f"Time: {now.strftime('%Y-%m-%d %H:%M:%S')}\n\n" + "\n".join(f"• {a}" for a in alerts)
+        body_parts = [f"Time: {now.strftime('%Y-%m-%d %H:%M:%S')}\n", "New issues:"]
+        body_parts.extend(f"• {a}" for a in new_alerts)
+        if ongoing_alerts:
+            body_parts.append("\nOngoing issues:")
+            body_parts.extend(f"• {a}" for a in ongoing_alerts)
+        body = "\n".join(body_parts)
         await notify(cfg.notifications, subject, body)
 
     state_manager.save()
