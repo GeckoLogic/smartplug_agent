@@ -177,8 +177,21 @@ async def async_main(args: argparse.Namespace) -> int:
                         alerts.append(alert_text)
         except Exception as exc:
             logger.error("Fatal error connecting to Meross cloud: %s", exc)
+            if state_manager.should_alert("_cloud", "connection_failed", cfg.suppress_repeat_minutes):
+                subject = "[SmartPlugAgent] Cannot reach Meross cloud — checks skipped"
+                body = (
+                    f"Time: {now.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                    f"The agent could not connect to the Meross cloud. "
+                    f"No plug states were checked this run.\n\nError: {exc}"
+                )
+                await notify(cfg.notifications, subject, body)
+                state_manager.record_alert("_cloud", "connection_failed")
+            else:
+                logger.info("Meross connection failure alert suppressed")
             state_manager.save()
             return 2
+
+    state_manager.clear_issue("_cloud", "connection_failed")
 
     if alerts:
         count = len(alerts)
