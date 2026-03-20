@@ -1,10 +1,10 @@
 [Unit]
-Description=Run Smart Plug Monitoring Agent every 5 minutes
+Description=Run Smart Plug Monitoring Agent
 Requires=smartplug_agent.service
 
 [Timer]
 OnBootSec=1min
-OnUnitActiveSec=5min
+OnUnitActiveSec=30min
 Persistent=true
 
 [Install]

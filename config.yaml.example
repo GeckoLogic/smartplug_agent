@@ -4,6 +4,8 @@ meross:
 
 auto_correct: "per_plug"        # "all" | "none" | "per_plug" (default)
 
+interval_minutes: 30            # how often the agent runs (read by setup scripts)
+
 plugs:
   - name: "Office Lamp"
     device_id: "abc123"

@@ -106,7 +106,7 @@ async def check_plug(
     if should_fix and not dry_run:
         logger.info("Auto-correcting plug '%s' to '%s'", plug.name, expected)
         success = await client.set_plug_state(plug_id, expected)
-        fix_note = "auto-correction attempted" if success else "auto-correction failed"
+        fix_note = "auto-correction succeeded" if success else "auto-correction failed"
         if not success:
             logger.error("Failed to auto-correct plug '%s'", plug.name)
     elif should_fix and dry_run:

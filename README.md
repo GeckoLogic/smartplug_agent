@@ -55,7 +55,8 @@ Exit codes: `0` = all healthy, `1` = issues found, `2` = fatal (bad config or lo
 | Telegram notifications | `httpx` (async HTTP) |
 | Email notifications | `smtplib` (stdlib, STARTTLS) |
 | Scheduling (Windows) | Windows Task Scheduler via `setup_task_scheduler.ps1` |
-| Scheduling (Mac/Linux) | systemd/cron or `launchd` |
+| Scheduling (Linux) | systemd timer via `setup_systemd.sh` |
+| Scheduling (macOS) | cron via `setup_cron.sh` |
 
 ---
 
@@ -73,8 +74,10 @@ smartplug_agent/
 ├── run_agent.vbs              # Windows launcher: starts run_agent.ps1 with no visible window
 ├── run_agent.ps1              # Windows wrapper: runs agent, logs to run.log
 ├── setup_task_scheduler.ps1   # One-time setup: registers Windows Scheduled Task
-├── smartplug_agent.service     # systemd service unit (Mac/Linux)
-├── smartplug_agent.timer       # systemd timer — every 30 min (Mac/Linux)
+├── setup_systemd.sh           # One-time setup: installs systemd timer (Linux)
+├── setup_cron.sh              # One-time setup: installs cron job (macOS)
+├── smartplug_agent.service     # systemd service unit template (Linux)
+├── smartplug_agent.timer       # systemd timer template (Linux)
 ├── config.yaml                # Your credentials & schedule (not committed)
 ├── config.yaml.example        # Safe annotated template
 ├── requirements.txt
@@ -140,16 +143,24 @@ python agent.py --config config.yaml --state state.json
 
 Exit code `0` = all plugs healthy.
 
-### 6. Schedule (runs every 30 minutes)
+### 6. Schedule
 
-**Windows** — run once to register a Scheduled Task:
+Set how often the agent runs by adding `interval_minutes` to `config.yaml`:
+
+```yaml
+interval_minutes: 30   # run every 30 minutes (default)
+```
+
+Then run the one-time setup script for your platform. Each script reads `interval_minutes` directly from `config.yaml`, so re-running it after changing the value is all that's needed to update the schedule.
+
+**Windows** — registers a Scheduled Task:
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned   # one-time, if needed
 .\setup_task_scheduler.ps1
 ```
 
-The task runs every 30 minutes with no visible window. It uses `run_agent.vbs` to launch PowerShell via `wscript.exe`, which keeps the process fully hidden in the background. Output is appended to `run.log` (rotated at 1 MB) and missed runs are caught up on after reboot.
+The task runs with no visible window via `run_agent.vbs` / `wscript.exe`. Output is appended to `run.log` (rotated at 1 MB) and missed runs are caught up on after reboot.
 
 ```powershell
 Start-ScheduledTask -TaskName SmartPlugAgent          # trigger immediately
@@ -157,14 +168,32 @@ Get-Content run.log -Tail 50 -Wait                    # follow the log
 Unregister-ScheduledTask -TaskName SmartPlugAgent -Confirm:$false  # remove
 ```
 
-**Mac/Linux** — install the included systemd timer:
+**Linux** — installs a systemd timer:
 
 ```bash
-sudo cp smartplug_agent.service smartplug_agent.timer /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now smartplug_agent.timer
-journalctl -u smartplug_agent -f
+bash setup_systemd.sh
 ```
+
+```bash
+sudo systemctl start smartplug_agent.service          # trigger immediately
+journalctl -u smartplug_agent -f                      # follow the log
+systemctl status smartplug_agent.timer                # timer status
+sudo systemctl disable --now smartplug_agent.timer && sudo rm /etc/systemd/system/smartplug_agent.*  # remove
+```
+
+**macOS** — installs a cron job:
+
+```bash
+bash setup_cron.sh
+```
+
+```bash
+crontab -l                                            # confirm the entry
+tail -f run.log                                       # follow the log
+crontab -l | grep -v '# SmartPlugAgent' | crontab -  # remove
+```
+
+> **Note:** cron intervals work best when they divide evenly into 60 (e.g. 10, 15, 20, 30, 60). Other values will run at inconsistent times within each hour.
 
 ---
 
@@ -174,6 +203,9 @@ journalctl -u smartplug_agent -f
 meross:
   email: "user@example.com"
   password: "your-meross-password"
+
+# How often the agent runs (minutes). Re-run the setup script after changing.
+interval_minutes: 30
 
 # Auto-correct behaviour:
 #   "all"      - correct every plug regardless of per-plug setting

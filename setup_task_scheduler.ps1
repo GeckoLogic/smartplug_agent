@@ -7,7 +7,9 @@
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RunnerScript = Join-Path $ScriptDir "run_agent.vbs"
-$TaskName = "SmartPlugAgent"
+$PythonExe   = Join-Path $ScriptDir "venv\Scripts\python.exe"
+$ConfigFile  = Join-Path $ScriptDir "config.yaml"
+$TaskName    = "SmartPlugAgent"
 
 # ── Prerequisite checks ────────────────────────────────────────────────────────
 
@@ -30,6 +32,12 @@ Copy the example and fill in your credentials:
     exit 1
 }
 
+# ── Read interval from config.yaml ────────────────────────────────────────────
+
+$IntervalMinutes = [int](& $PythonExe -c "import yaml; d=yaml.safe_load(open(r'$ConfigFile')); print(max(1, int(d.get('interval_minutes', 30))))" 2>$null)
+if (-not $IntervalMinutes -or $IntervalMinutes -le 0) { $IntervalMinutes = 30 }
+Write-Host "Scheduling interval: $IntervalMinutes minute(s) (from config.yaml)."
+
 # ── Build task components ──────────────────────────────────────────────────────
 
 # Action: run run_agent.ps1 via powershell.exe
@@ -38,13 +46,13 @@ $Action = New-ScheduledTaskAction `
     -Argument "`"$RunnerScript`"" `
     -WorkingDirectory $ScriptDir
 
-# Trigger: every 30 minutes, effectively forever (10 years), starting now.
+# Trigger: every $IntervalMinutes minutes, effectively forever (10 years), starting now.
 # StartWhenAvailable (in Settings) handles the Persistent=true equivalent:
 # if the machine was off during a scheduled run, it catches up on next startup.
 $Trigger = New-ScheduledTaskTrigger `
     -Once `
     -At (Get-Date) `
-    -RepetitionInterval (New-TimeSpan -Minutes 30) `
+    -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes) `
     -RepetitionDuration (New-TimeSpan -Days 3650)
 
 $Settings = New-ScheduledTaskSettingsSet `
@@ -67,10 +75,10 @@ Register-ScheduledTask `
     -Trigger $Trigger `
     -Settings $Settings `
     -RunLevel Limited `
-    -Description "Monitors Meross smart plugs every 30 minutes and sends alerts on issues."
+    -Description "Monitors Meross smart plugs every $IntervalMinutes minute(s) and sends alerts on issues."
 
 Write-Host ""
-Write-Host "Registered '$TaskName' - runs every 30 minutes, logs to run.log."
+Write-Host "Registered '$TaskName' - runs every $IntervalMinutes minute(s), logs to run.log."
 Write-Host ""
 Write-Host "Useful commands:"
 Write-Host "  Run now:     Start-ScheduledTask -TaskName '$TaskName'"
